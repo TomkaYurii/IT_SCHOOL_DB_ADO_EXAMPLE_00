@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.Text;
+using System.Threading;
 
 namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
 {
@@ -9,37 +11,54 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
 
         static void Main(string[] args)
         {
+            Console.OutputEncoding = UTF8Encoding.UTF8;
             SqlConnection conn = new SqlConnection();
             conn.ConnectionString = "Data Source=DESKTOP-TOMKA;Initial Catalog=IT_SCHOOL_DB_ADO_EXAMPLE_00;Integrated Security=True;Connect Timeout=60;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
 
+            bool showMenu = true;
+            while (showMenu)
+            {
+                showMenu = Menu(conn);
+            }
+        }
 
-            // Діалог із користувачем
+        /// <summary>
+        /// Меню
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <returns></returns>
+        private static bool Menu(SqlConnection conn)
+        {
+            //Діалог із користувачем
+            Console.Clear();
             Console.WriteLine("Choose an option from the following list:");
-            Console.WriteLine("\ti - Insert");
-            Console.WriteLine("\ts - Simple Read");
-            Console.WriteLine("\tr - Dertail Read");
-            Console.WriteLine("\te - StoredProcedure");
-            Console.Write("Your option? ");
+            Console.WriteLine("\ti - Operation of Insert");
+            Console.WriteLine("\ts - Operation of Simple Read");
+            Console.WriteLine("\tr - Operation of Detail Read");
+            Console.WriteLine("\tp - Operation with StoredProcedure");
+            Console.WriteLine("\te - Exit");
+            Console.Write("Select an option? ");
 
             //Вибір того що потрібно зробити
             switch (Console.ReadLine())
             {
                 case "i":
                     InsertQuery(conn);
-                    break;
+                    return true;
                 case "s":
                     ReadData(conn);
-                    break;
+                    return true;
                 case "r":
                     ReadData2(conn);
-                    break;
-                case "e":
+                    return true;
+                case "p":
                     ExecStoredProcedure(conn);
-                    break;
+                    return true;
+                case "e":
+                    return false;
+                default:
+                    return true;
             }
-            // Очікуємов поки користувач натисне довільну клавішу.
-            Console.Write("Press any key to close console app...");
-            Console.ReadKey();
         }
 
         /// <summary>
@@ -47,36 +66,65 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
         /// </summary>
         /// <param name="conn"></param>
         public static void InsertQuery(SqlConnection conn)
-        {
-            try
             {
-                // Відкриваємо підключення
-                conn.Open();
-
-                // Підготовка рядка підключення
-                string insertString = "Insert into Authors (FirstName, LastName) values ('SUPERNAME', 'SUPERLASTNAME')";
-
-                // 1. Реалізуємо команду для query та відповідного підключення
-                SqlCommand cmd = new SqlCommand(insertString, conn);
-
-                // 2. Вкиликаємо ExecuteNonQuery для відправки команди 
-                cmd.ExecuteNonQuery();
-            }
-            finally
-            {
-                // Закриваємо підключення
-                if (conn != null)
+                try
                 {
-                    conn.Close();
+                    // Відкриваємо підключення
+                    conn.Open();
+
+                    // Підготовка запиту для вставки в таблицю авторів
+                    string AUTHOR_insertString = "Insert into Authors (FirstName, LastName) values ('SUPERNAME', 'SUPERLASTNAME') SET @ID = SCOPE_IDENTITY();";
+                    SqlCommand cmd_author = new SqlCommand(AUTHOR_insertString, conn);
+
+                    SqlParameter authID_param = new SqlParameter("@ID", SqlDbType.Int, 4);
+                    authID_param.Direction = ParameterDirection.Output;
+                    cmd_author.Parameters.Add(authID_param);
+                    // виликаємо ExecuteNonQuery для відправки команди (запис в таблицю авторів)
+                    cmd_author.ExecuteNonQuery();
+                    // отримуємо ID доданого атвора
+                    var authorID = authID_param.Value;
+
+
+
+                    // Підготовка запиту для вставки в таблицю книг  
+                    string BOOK_insertString = "Insert into Books (AuthorId, Title, PRICE, PAGES) values (@authorID,'SUPERBOOK', '1000','500') SET @ID = SCOPE_IDENTITY();";
+                    SqlCommand cmd_book = new SqlCommand(BOOK_insertString, conn);
+
+                    SqlParameter authIDbook_param = new SqlParameter("@authorID", authorID);
+                    cmd_book.Parameters.Add(authIDbook_param);
+
+                    SqlParameter bookID_param = new SqlParameter("@ID", SqlDbType.Int, 4);
+                    bookID_param.Direction = ParameterDirection.Output;
+                    cmd_book.Parameters.Add(bookID_param);
+
+                    // виликаємо ExecuteNonQuery для відправки команди (запис в таблицю авторів)
+                    cmd_book.ExecuteNonQuery();
+
+                    Console.WriteLine("============");
+                    Console.WriteLine("Працюю із БД... Все працює як слід...");
+                    Console.WriteLine("ID автора що ми додалу в таблицю авторів - {0}", authorID);
+                    Console.WriteLine("ID книги що ми додалу в таблицю книг - {0}", bookID_param.Value);
+                    Thread.Sleep(3000);
+
+                    Console.WriteLine("Вертаюсь в головне меню...");
+                    Thread.Sleep(2000);
+
+                }
+                finally
+                {
+                    // Закриваємо підключення
+                    if (conn != null)
+                    {
+                        conn.Close();
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// функція читання
         /// </summary>
         /// <param name="conn"></param>
-        public static void ReadData(SqlConnection conn)
+        private static void ReadData(SqlConnection conn)
         {
             SqlDataReader rdr = null;
 
@@ -88,10 +136,19 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
 
                 rdr = cmd.ExecuteReader();
 
+                Console.WriteLine("============");
+                Console.WriteLine("Працюю із БД... Все працює як слід...");
+                Thread.Sleep(3000);
+
+
                 while (rdr.Read())
                 {
                     Console.WriteLine(rdr[1] + " " + rdr[2]);
                 }
+
+                Console.WriteLine("============");
+                Console.WriteLine("Вертаюсь в головне меню...");
+                Thread.Sleep(2000);
             }
             finally
             {
@@ -113,7 +170,7 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
         /// деталызована функція читання
         /// </summary>
         /// <param name="conn"></param>
-        public static void ReadData2(SqlConnection conn)
+        private static void ReadData2(SqlConnection conn)
         {
             SqlDataReader rdr = null;
 
@@ -125,6 +182,11 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
                 SqlCommand cmd = new SqlCommand("select * from Authors", conn);
 
                 rdr = cmd.ExecuteReader();
+
+                Console.WriteLine("============");
+                Console.WriteLine("Працюю із БД... Все працює як слід...");
+                Thread.Sleep(3000);
+
                 int line = 0;
 
                 // забираємо рядки
@@ -149,6 +211,10 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
                     Console.WriteLine("Total records processed: " + line.ToString());
                 } while (rdr.NextResult());
 
+                Console.WriteLine("============");
+                Console.WriteLine("Вертаюсь в головне меню...");
+                Thread.Sleep(3000);
+
             }
             finally
             {
@@ -170,13 +236,16 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
         /// виконання запиту на основі збережуваної процедури
         /// </summary>
         /// <param name="conn"></param>
-        public static void ExecStoredProcedure(SqlConnection conn)
+        private static void ExecStoredProcedure(SqlConnection conn)
         {
             conn.Open();
             SqlCommand cmd = new SqlCommand("getBooksNumber", conn);
             cmd.CommandType = CommandType.StoredProcedure;
 
-            cmd.Parameters.Add("@AuthorId", System.Data.SqlDbType.Int).Value = 1;
+            Console.WriteLine("Введіть ID автора...");
+            int authorID = Convert.ToInt32(Console.ReadLine());
+
+            cmd.Parameters.Add("@AuthorId", System.Data.SqlDbType.Int).Value = authorID;
 
             SqlParameter outputParam = new SqlParameter("@BookCount", System.Data.SqlDbType.Int);
             outputParam.Direction = ParameterDirection.Output;
@@ -184,7 +253,16 @@ namespace IT_SCHOOL_DB_ADO_EXAMPLE_00
             cmd.Parameters.Add(outputParam);
 
             cmd.ExecuteNonQuery();
-            Console.WriteLine(cmd.Parameters["@BookCount"].Value.ToString());
+
+            Console.WriteLine("============");
+            Console.WriteLine("Працюю із БД... Все працює як слід...");
+            Thread.Sleep(3000);
+
+            Console.WriteLine("Кількість книг для автора із ID - {0}, складає - {1}", authorID, cmd.Parameters["@BookCount"].Value.ToString());
+
+            Console.WriteLine("============");
+            Console.WriteLine("Вертаюсь в головне меню...");
+            Thread.Sleep(3000);
 
         }
     }
